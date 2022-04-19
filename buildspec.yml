@@ -17,11 +17,4 @@ phases:
     post_build:
         commands:
             - echo "we are in the post build phase"
-
-artifacts:
-        files:
-            - '**/*'
-        base-directory: "/"
-        name: build-artifact-name
-        discard-paths: no
                     
