@@ -101,5 +101,5 @@ Resources:
         NotificationConfiguration:
           QueueConfigurations:
             - Event: s3:ObjectCreated:Put
-              Queue: !Sub "arn:aws:sqs:eu-west-1:479499595677:${QueueCustomName}"
+              Queue: !Sub "arn:aws:sqs:${AWS::AccountId}:${AWS::Region}:${QueueCustomName}"
       DependsOn : SQSQueuePolicy
