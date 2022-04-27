@@ -8,12 +8,7 @@ Parameters:
   S3ObjectVersionParam:
     Description: Version of the source Lambda file
     Type: String
-  BucketCustomName:
-    Description: Enter the name for the bucket which will store the files
-    Type: String
-  QueueCustomName:
-    Description: Enter the name for the transmit queue
-    Type: String
+
 
 Resources:
 
@@ -30,7 +25,7 @@ Resources:
           Action:
           - sts:AssumeRole
       Policies:
-        - PolicyName: allowLambdaLogs
+        - PolicyName: allowLambdaLogsAndDashboard
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -38,6 +33,11 @@ Resources:
               Action:
               - logs:*
               Resource: arn:aws:logs:*:*:*
+            - Effect: Allow
+              Action:
+              - 'cloudwatch:DeleteDashboards'
+              - 'cloudwatch:PutDashboard'
+              Resource: '*'
         - PolicyName: allowSqs
           PolicyDocument:
             Version: '2012-10-17'
@@ -71,35 +71,47 @@ Resources:
       FunctionName: !GetAtt LambdaFunction.Arn
 
   TransmitQueue:
-      Type: "AWS::SQS::Queue"
-      Properties:
-        QueueName: !Ref QueueCustomName
-        DelaySeconds: 0
-        VisibilityTimeout: 120
+    Type: "AWS::SQS::Queue"
+    Properties:
+      QueueName: !Sub Transqueue-${AWS::Region}-${AWS::AccountId}
+      DelaySeconds: 0
+      VisibilityTimeout: 120
 
   SQSQueuePolicy:
-      Type: AWS::SQS::QueuePolicy
-      Properties:
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal:
-                AWS: "*"
-              Action: SQS:SendMessage
-              Resource: "*"
-              Condition:
-                ArnLike:
-                  aws:SourceArn: !Sub "arn:aws:s3:::${BucketCustomName}"
-        Queues: 
-          - !Ref TransmitQueue
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action: SQS:SendMessage
+            Resource: "*"
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:s3:::Cf-bucket-${AWS::Region}-${AWS::AccountId}"
+      Queues: 
+        - !Ref TransmitQueue
     
   S3Bucket:
-      Type: AWS::S3::Bucket
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketCustomName
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueCustomName}"
+    DependsOn : SQSQueuePolicy
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
       Properties:
-        BucketName: !Ref BucketCustomName
-        NotificationConfiguration:
-          QueueConfigurations:
-            - Event: s3:ObjectCreated:Put
-              Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueCustomName}"
-      DependsOn : SQSQueuePolicy
+        DashboardName: !Sub Dashboard-${AWS::Region}-${AWS::AccountId} 
+        DashboardBody: '{“widgets”:
+        [{“type”:”metric”,”x”:0,”y”:0,”width”:12,”height”:6,”properties”:
+        {“metrics”:[[“AWS/EC2”,”CPUUtilization”,”InstanceId”,”i-012345"]],
+        ”period”:300,”stat”:”Average”,”region”:”us-east-1",”title”:”EC2 Instance CPU”}},
+        {“type”:”text”,”x”:0,”y”:7,”width”:3,”height”:3,”properties”:
+        {“markdown”:”Hello world”}}]}'
+        
