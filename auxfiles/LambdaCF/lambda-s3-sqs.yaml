@@ -1,12 +1,15 @@
 Parameters:
   S3BucketParam:
-    Description: Name of the bucket where the source Lambda file is
+    Description: s3-cloudformation-rbalufo
     Type: String
   S3KeyParam:
-    Description: Name of the source Lambda file
+    Description: function.zip
     Type: String
   S3ObjectVersionParam:
-    Description: Version of the source Lambda file
+    Description: lXOTqO5L8j.xKVpFT6HhC7fE2eHgDaRC
+    Type: String
+  BucketCustomName:
+    Description: Name of the bucket where the files will be uploaded
     Type: String
 
 
@@ -76,16 +79,6 @@ Resources:
       QueueName: !Sub Transqueue-${AWS::Region}-${AWS::AccountId}
       DelaySeconds: 0
       VisibilityTimeout: 120
-      
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub Cf-bucket-${AWS::Region}-${AWS::AccountId}
-      NotificationConfiguration:
-        QueueConfigurations:
-          - Event: s3:ObjectCreated:Put
-            Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${TransmitQueue.QueueName}"
-    DependsOn : SQSQueuePolicy
 
   SQSQueuePolicy:
     Type: AWS::SQS::QueuePolicy
@@ -100,11 +93,19 @@ Resources:
             Resource: "*"
             Condition:
               ArnLike:
-                aws:SourceArn: !Sub "arn:aws:s3:::${S3Bucket.BucketName}"
+                aws:SourceArn: !Sub "arn:aws:s3:::${BucketCustomName}"
       Queues: 
         - !Ref TransmitQueue
     
-  
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketCustomName
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${TransmitQueue.QueueName}"
+    DependsOn : SQSQueuePolicy
 
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
