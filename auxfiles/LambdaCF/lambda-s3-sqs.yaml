@@ -76,6 +76,16 @@ Resources:
       QueueName: !Sub Transqueue-${AWS::Region}-${AWS::AccountId}
       DelaySeconds: 0
       VisibilityTimeout: 120
+      
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub Cf-bucket-${AWS::Region}-${AWS::AccountId}
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${TransmitQueue.QueueName}"
+    DependsOn : SQSQueuePolicy
 
   SQSQueuePolicy:
     Type: AWS::SQS::QueuePolicy
@@ -94,15 +104,7 @@ Resources:
       Queues: 
         - !Ref TransmitQueue
     
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub Cf-bucket-${AWS::Region}-${AWS::AccountId}
-      NotificationConfiguration:
-        QueueConfigurations:
-          - Event: s3:ObjectCreated:Put
-            Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${TransmitQueue.QueueName}"
-    DependsOn : SQSQueuePolicy
+  
 
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
